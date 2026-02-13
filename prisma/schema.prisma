@@ -1,0 +1,68 @@
+// Prisma schema for Vercel Postgres
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgres"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// Пользователи Telegram бота
+model TelegramUser {
+  id            String    @id @default(cuid())
+  telegramId    String    @unique
+  username      String?
+  firstName     String?
+  lastName      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  products      Product[]
+}
+
+// Отслеживаемые товары
+model Product {
+  id              String         @id @default(cuid())
+  userId          String
+  user            TelegramUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ozonProductId   String         // ID товара на Ozon
+  url             String         // Полная ссылка на товар
+  name            String         // Название товара
+  image           String?        // URL изображения
+  currentPrice    Int            // Текущая цена в копейках (для точности)
+  initialPrice    Int            // Начальная цена при добавлении
+  lastCheckedAt   DateTime?      // Последняя проверка
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  priceHistory    PriceHistory[]
+  notifications   Notification[]
+
+  @@index([userId])
+  @@index([ozonProductId])
+}
+
+// История цен
+model PriceHistory {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price       Int      // Цена в копейках
+  checkedAt   DateTime @default(now())
+
+  @@index([productId])
+}
+
+// Уведомления о изменении цен
+model Notification {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  oldPrice        Int      // Старая цена
+  newPrice        Int      // Новая цена
+  percentChange   Float    // Процент изменения
+  sentAt          DateTime @default(now())
+
+  @@index([productId])
+}
