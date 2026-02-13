@@ -1,9 +1,9 @@
 /**
- * Debug endpoint для тестирования парсера
+ * Debug endpoint
  */
 
 import { NextResponse } from 'next/server';
-import ZAIClient from '@/lib/zai-client';
+import { googleSearch } from '@/lib/google-search';
 import { extractOzonProductId, extractProductName } from '@/lib/telegram/ozon-parser';
 
 export async function GET(request: Request) {
@@ -11,19 +11,12 @@ export async function GET(request: Request) {
   const testUrl = searchParams.get('url') || 'https://www.ozon.ru/product/dzhinsy-wearelsts-shirokie-truby-1616074886/';
   
   try {
-    const zai = await ZAIClient.create();
-    
     const productId = extractOzonProductId(testUrl);
     const productName = extractProductName(testUrl);
     
-    console.log('Testing URL:', testUrl);
-    console.log('Product ID:', productId);
-    console.log('Product Name:', productName);
+    const searchQuery = `${productName} цена Ozon`;
     
-    const searchQuery = `${productName} купить цена Ozon`;
-    console.log('Search query:', searchQuery);
-    
-    const searchResult = await zai.webSearch(searchQuery, 3);
+    const searchResult = await googleSearch(searchQuery, 3);
     
     return NextResponse.json({
       url: testUrl,

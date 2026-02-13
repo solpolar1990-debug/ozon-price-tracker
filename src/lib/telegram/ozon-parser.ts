@@ -2,7 +2,7 @@
  * Парсер цен с Ozon
  */
 
-import ZAIClient from '@/lib/zai-client';
+import { googleSearch } from '@/lib/google-search';
 
 export interface OzonProductInfo {
   productId: string;
@@ -156,7 +156,7 @@ function parsePriceFromText(text: string): { price: number; originalPrice?: numb
 }
 
 /**
- * Получает информацию о товаре с Ozon
+ * Получает информацию о товаре с Ozon через Google Search
  */
 export async function fetchOzonProduct(url: string): Promise<OzonProductInfo | null> {
   let productId = extractOzonProductId(url);
@@ -175,29 +175,29 @@ export async function fetchOzonProduct(url: string): Promise<OzonProductInfo | n
   }
 
   try {
-    const zai = await ZAIClient.create();
-    
     const searchQuery = productName !== 'Товар Ozon' 
-      ? `${productName.slice(0, 60)} купить цена Ozon`
-      : `Ozon product ${productId} цена`;
+      ? `${productName.slice(0, 60)} цена Ozon`
+      : `Ozon ${productId} цена`;
     
     console.log(`🔍 Searching for: ${searchQuery}`);
 
-    const searchResult = await zai.webSearch(searchQuery, 5);
+    const searchResults = await googleSearch(searchQuery, 5);
 
-    if (Array.isArray(searchResult) && searchResult.length > 0) {
+    if (searchResults.length > 0) {
       let foundPrice: { price: number; originalPrice?: number } | null = null;
       let foundName = productName;
       let foundProductId = productId;
 
-      for (const result of searchResult) {
-        if (result.url) {
-          const realId = extractOzonProductId(result.url);
+      for (const result of searchResults) {
+        // Ищем ID в URL
+        if (result.link) {
+          const realId = extractOzonProductId(result.link);
           if (realId && realId.length > 7) {
             foundProductId = realId;
           }
         }
 
+        // Парсим цену из сниппета
         if (result.snippet) {
           const priceInfo = parsePriceFromText(result.snippet);
           if (priceInfo && priceInfo.price > 0) {
@@ -205,15 +205,17 @@ export async function fetchOzonProduct(url: string): Promise<OzonProductInfo | n
           }
         }
 
-        if (result.name && !foundPrice) {
-          const priceInfo = parsePriceFromText(result.name);
+        // Парсим цену из названия
+        if (result.title && !foundPrice) {
+          const priceInfo = parsePriceFromText(result.title);
           if (priceInfo && priceInfo.price > 0) {
             foundPrice = priceInfo;
           }
         }
 
-        if (result.name) {
-          const cleanName = result.name
+        // Получаем название
+        if (result.title) {
+          const cleanName = result.title
             .replace(/\s*[-–]\s*OZON\s*$/i, '')
             .replace(/\s*[-–]\s*Ozon\s*$/i, '')
             .replace(/\s*купить.*$/i, '')
