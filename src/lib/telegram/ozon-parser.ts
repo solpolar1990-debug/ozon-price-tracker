@@ -2,7 +2,7 @@
  * Парсер цен с Ozon
  */
 
-import { googleSearch } from '@/lib/google-search';
+import { duckDuckGoSearch } from '@/lib/duckduckgo-search';
 
 export interface OzonProductInfo {
   productId: string;
@@ -108,12 +108,12 @@ export function isValidOzonUrl(url: string): boolean {
 }
 
 /**
- * Парсит цену из текста - поддерживает разные форматы
+ * Парсит цену из текста
  */
 function parsePriceFromText(text: string): { price: number; originalPrice?: number } | null {
   const prices: number[] = [];
   
-  // Формат "RUB 310,00" или "RUB 310.00"
+  // Формат "RUB 310,00"
   const rubMatches = text.matchAll(/RUB\s*(\d+(?:[.,]\d+)?)/gi);
   for (const match of rubMatches) {
     const price = parseFloat(match[1].replace(',', '.'));
@@ -131,7 +131,7 @@ function parsePriceFromText(text: string): { price: number; originalPrice?: numb
     }
   }
   
-  // Формат "789₽" без пробела
+  // Формат "789₽"
   const compactMatches = text.matchAll(/(\d{3,})₽/g);
   for (const match of compactMatches) {
     const price = parseInt(match[1], 10);
@@ -156,7 +156,7 @@ function parsePriceFromText(text: string): { price: number; originalPrice?: numb
 }
 
 /**
- * Получает информацию о товаре с Ozon через Google Search
+ * Получает информацию о товаре с Ozon
  */
 export async function fetchOzonProduct(url: string): Promise<OzonProductInfo | null> {
   let productId = extractOzonProductId(url);
@@ -176,12 +176,10 @@ export async function fetchOzonProduct(url: string): Promise<OzonProductInfo | n
 
   try {
     const searchQuery = productName !== 'Товар Ozon' 
-      ? `${productName.slice(0, 60)} цена Ozon`
-      : `Ozon ${productId} цена`;
+      ? `${productName.slice(0, 50)} цена`
+      : `Ozon ${productId}`;
     
-    console.log(`🔍 Searching for: ${searchQuery}`);
-
-    const searchResults = await googleSearch(searchQuery, 5);
+    const searchResults = await duckDuckGoSearch(searchQuery, 5);
 
     if (searchResults.length > 0) {
       let foundPrice: { price: number; originalPrice?: number } | null = null;
@@ -189,7 +187,6 @@ export async function fetchOzonProduct(url: string): Promise<OzonProductInfo | n
       let foundProductId = productId;
 
       for (const result of searchResults) {
-        // Ищем ID в URL
         if (result.link) {
           const realId = extractOzonProductId(result.link);
           if (realId && realId.length > 7) {
@@ -197,7 +194,6 @@ export async function fetchOzonProduct(url: string): Promise<OzonProductInfo | n
           }
         }
 
-        // Парсим цену из сниппета
         if (result.snippet) {
           const priceInfo = parsePriceFromText(result.snippet);
           if (priceInfo && priceInfo.price > 0) {
@@ -205,7 +201,6 @@ export async function fetchOzonProduct(url: string): Promise<OzonProductInfo | n
           }
         }
 
-        // Парсим цену из названия
         if (result.title && !foundPrice) {
           const priceInfo = parsePriceFromText(result.title);
           if (priceInfo && priceInfo.price > 0) {
@@ -213,14 +208,11 @@ export async function fetchOzonProduct(url: string): Promise<OzonProductInfo | n
           }
         }
 
-        // Получаем название
         if (result.title) {
           const cleanName = result.title
             .replace(/\s*[-–]\s*OZON\s*$/i, '')
             .replace(/\s*[-–]\s*Ozon\s*$/i, '')
             .replace(/\s*купить.*$/i, '')
-            .replace(/\s*на\s*OZON.*$/i, '')
-            .replace(/\s*–\s*покупайте.*$/i, '')
             .trim();
           if (cleanName.length > 3 && cleanName.length < 150) {
             foundName = cleanName;

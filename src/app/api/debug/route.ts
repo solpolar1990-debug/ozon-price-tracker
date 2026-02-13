@@ -3,7 +3,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { googleSearch } from '@/lib/google-search';
+import { duckDuckGoSearch } from '@/lib/duckduckgo-search';
 import { extractOzonProductId, extractProductName } from '@/lib/telegram/ozon-parser';
 
 export async function GET(request: Request) {
@@ -14,9 +14,9 @@ export async function GET(request: Request) {
     const productId = extractOzonProductId(testUrl);
     const productName = extractProductName(testUrl);
     
-    const searchQuery = `${productName} цена Ozon`;
+    const searchQuery = `${productName} цена`;
     
-    const searchResult = await googleSearch(searchQuery, 3);
+    const searchResult = await duckDuckGoSearch(searchQuery, 3);
     
     return NextResponse.json({
       url: testUrl,
